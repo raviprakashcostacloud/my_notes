@@ -376,6 +376,8 @@ flowchart TB
 
 **Chairs decide. Drawer keepers do the physical work.**
 
+> **Note:** this diagram shows where the storage nodes **physically run** (inside one server). It does **not** mean each server has its own round table. All storage nodes of **all** servers sit around **one single Round table (Ring)**. See Lesson 5, *"Does each server have its own round table?"*
+
 ### Step 3: Why ~6 chairs per server, not just 1?
 
 **Think of what happens when a server dies:**
@@ -602,6 +604,127 @@ The puzzle has **12 pieces**, and you need **any 9**. So you can lose **at most 
 | --- | --- | --- |
 | **Real Scality** | **About 6** | The real-life setting |
 | **Examples in this guide** | **2** | Only to keep drawings small; the idea is the same |
+
+#### "Does each server have its own round table?" (a common confusion)
+
+**No.** This is the most important point of the whole lesson:
+
+> **The server is NOT the round table.**
+> **There is only ONE round table (Ring) for the whole cluster.**
+> **All the chairs (Storage nodes) of all the servers sit around that same single table.**
+
+| Thing | Everyday name | How many (6 servers × 6 nodes) |
+| --- | --- | --- |
+| **The whole cluster (RING)** | **The round table** | **Only ONE** |
+| **Server** | **A person** | 6 |
+| **Storage node** (`bizstorenode`) | **A chair** | 6 per person, so **36 in total** |
+
+**✖ The wrong picture: one table per server**
+
+```mermaid
+flowchart LR
+    subgraph T1["Table 1 = Server 1 ✖"]
+        a1["node1"] ~~~ a2["node2"] ~~~ a3["... node6"]
+    end
+    subgraph T2["Table 2 = Server 2 ✖"]
+        b1["node1"] ~~~ b2["node2"] ~~~ b3["... node6"]
+    end
+    subgraph T6["Table 6 = Server 6 ✖"]
+        c1["node1"] ~~~ c2["node2"] ~~~ c3["... node6"]
+    end
+    T1 ~~~ T2 ~~~ T6
+```
+
+**✔ The correct picture: ONE table, 36 chairs, all servers mixed around it**
+
+```
+                    ONE ROUND TABLE (the RING)
+                     36 chairs in total
+
+            S1  S2  S3  S4  S5  S6  S1  S2  S3
+         S6                                    S4
+       S5                                        S5
+       S4                                        S6
+       S3              ONE TABLE                 S1
+       S2           (whole cluster)              S2
+       S1                                        S3
+         S6                                    S4
+            S5  S4  S3  S2  S1  S6  S5  S4  S3 ...
+
+   Going around: S1, S2, S3, S4, S5, S6, S1, S2, S3 ... (36 chairs)
+```
+
+You can also read it as **6 laps** around the **same** table:
+
+| Lap around the table | Chair order |
+| --- | --- |
+| Lap 1 | S1-node1 → S2-node1 → S3-node1 → S4-node1 → S5-node1 → S6-node1 |
+| Lap 2 | S1-node2 → S2-node2 → S3-node2 → S4-node2 → S5-node2 → S6-node2 |
+| Lap 3 | S1-node3 → S2-node3 → … → S6-node3 |
+| Lap 4 | S1-node4 → … → S6-node4 |
+| Lap 5 | S1-node5 → … → S6-node5 |
+| Lap 6 | S1-node6 → … → S6-node6 → back to the start |
+
+**Server S1 sits in 6 chairs**, one in each lap, so its chairs are **spread all around the table** and never next to each other.
+
+```mermaid
+flowchart LR
+    L1["Lap 1<br/>S1 S2 S3 S4 S5 S6"] --> L2["Lap 2<br/>S1 S2 S3 S4 S5 S6"] --> L3["Lap 3<br/>S1 S2 S3 S4 S5 S6"]
+    L3 --> L4["Lap 4<br/>S1 S2 S3 S4 S5 S6"] --> L5["Lap 5<br/>S1 S2 S3 S4 S5 S6"] --> L6["Lap 6<br/>S1 S2 S3 S4 S5 S6"]
+    L6 -- "back to the start<br/>(it is a circle)" --> L1
+```
+
+##### Why the confusion happens: two views of the same thing
+
+The diagram in **Lesson 4** shows 6 nodes **inside** a server box. That box shows **where the nodes physically run**. The round table shows **where the nodes logically sit**:
+
+```
+  VIEW 1: PHYSICAL (inside the machine)       VIEW 2: LOGICAL (the ring)
+
+  ┌──── Server S1 ────┐                       ONE table, 36 chairs:
+  │ node1 node2 node3 │   these 6 processes    S1-node1 sits in chair 1
+  │ node4 node5 node6 │   run on S1's CPU      S1-node2 sits in chair 7
+  └───────────────────┘                        S1-node3 sits in chair 13
+                                               S1-node4 sits in chair 19
+                                               S1-node5 sits in chair 25
+                                               S1-node6 sits in chair 31
+```
+
+```mermaid
+flowchart LR
+    subgraph PHY["PHYSICAL VIEW: Server S1 (one machine)"]
+        n1["node1"] ~~~ n2["node2"] ~~~ n3["node3"]
+        n4["node4"] ~~~ n5["node5"] ~~~ n6["node6"]
+    end
+    subgraph LOG["LOGICAL VIEW: the ONE Round table (Ring)"]
+        c1["chair 1"] ~~~ c7["chair 7"] ~~~ c13["chair 13"]
+        c19["chair 19"] ~~~ c25["chair 25"] ~~~ c31["chair 31"]
+    end
+    n1 -- "sits in" --> c1
+    n2 -- "sits in" --> c7
+    n3 -- "sits in" --> c13
+    n4 -- "sits in" --> c19
+    n5 -- "sits in" --> c25
+    n6 -- "sits in" --> c31
+```
+
+**Everyday example: one person who bought 6 seats in the same cinema hall.**
+- **Physically**, it is **one person** (one server).
+- **In the hall**, they hold **6 seats** (6 storage nodes) in **different rows**.
+- **There is only one cinema hall** (one ring), shared by everyone.
+
+##### The example, answered
+
+> "I have 6 servers and each server has 6 storage nodes."
+
+| Question | Answer |
+| --- | --- |
+| How many round tables? | **1** (the whole cluster) |
+| How many chairs at that table? | **6 × 6 = 36** |
+| How many chairs does S1 own? | **6**, spread around the table (one per lap) |
+| Who stores a piece? | The **chair** after the piece's **Ticket number (Ring key)**, and whichever server owns that chair |
+
+> **Remember:** **one cluster = one round table.** **Server = person, storage node = chair.** Each server owns **about 6 chairs** at the **same** table, spread **far apart**.
 
 #### "But you said one person in two chairs is bad?"
 
